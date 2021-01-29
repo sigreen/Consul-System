@@ -11,7 +11,6 @@ def main():
             "Status": i['Status']
             }
     check_json = json.dumps(check_info)
-    #print(i['Node'], i['CheckID'], i['Status'])
     print(check_json)
     requests.post(amq_url, json=check_json, auth=HTTPBasicAuth('admin', 'admin'))
 if __name__ == "__main__":

@@ -20,10 +20,6 @@ variable "owner" {
   default = ""
 }
 
-variable "DD_API_KEY" {
-  type = string
-}
-
 # Looking for the source image on which to pack my new image
 source "amazon-ebs" "ubuntu-image" {
   ami_name = "${var.owner}_{{timestamp}}"
@@ -69,28 +65,18 @@ build {
     destination = "/tmp/consul-common.hcl"
   }
 
-  provisioner "file" {
-    source      = "../files/dd_consul.yaml"
-    destination = "/tmp/consul.yaml"
-  }
-
-  provisioner "file" {
-    source      = "../files/dogtreat.yaml"
-    destination = "/tmp/dogtreat.yaml"
-  }
-
 # installing Linux items including Docker and of course Consul images
   provisioner "shell" {
     inline = [
       "sleep 30",
       "sudo apt-get update",
       "sudo apt install unzip -y",
-      "sudo apt install nfs-common -y",
+#      "sudo apt install nfs-common -y",
       "sudo apt install default-jre -y",
-      "curl -fsSL \"https://get.docker.com\" -o get-docker.sh",
-      "sudo sh get-docker.sh",
-      "sleep 30",
-      "sudo usermod -aG docker ubuntu",
+#      "curl -fsSL \"https://get.docker.com\" -o get-docker.sh",
+#      "sudo sh get-docker.sh",
+#      "sleep 30",
+#      "sudo usermod -aG docker ubuntu",
       "curl -k -O \"https://releases.hashicorp.com/consul/1.9.0/consul_1.9.0_linux_amd64.zip\"",
       "unzip consul_1.9.0_linux_amd64.zip",
       "sudo mv consul /usr/local/bin"
@@ -111,18 +97,6 @@ build {
     ]
   }
 
-# Installing DataDog Agent
-  provisioner "shell" {
-      environment_vars = [ "datadog_key=${var.DD_API_KEY}" ]
-      inline = [
-      "echo \"Installing DataDog with key $datadog_key\"",
-      "sudo DD_AGENT_MAJOR_VERSION=7 DD_API_KEY=$datadog_key bash -c \"$(curl -L https://raw.githubusercontent.com/DataDog/datadog-agent/master/cmd/agent/install_script.sh)\"",
-      "sudo mv /tmp/consul.yaml /etc/datadog-agent/conf.d/consul.d/consul.yaml",
-      "cat /tmp/dogtreat.yaml | sudo tee -a /etc/datadog-agent/datadog.yaml",
-      # Adding dd-agent as having read access to consul logs
-      "sudo setfacl -m d:dd-agent:r /etc/consul/logs/",
-    ]
-  }
  post-processor "manifest" {
    output = "aws-manifest.json"
    strip_path = true

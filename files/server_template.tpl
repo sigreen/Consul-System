@@ -13,9 +13,9 @@ client_addr = "$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)"
 ui = true
 watches = [
     {
-        type = "checks"
+      type = "checks"
 	    service = "httpd"
-        args = ["/etc/consul/consul.d/check-handler.py"]
+      args = ["/etc/consul/consul.d/check-handler.py"]
     }
   ]
 EOF

@@ -35,7 +35,6 @@ resource "aws_route53_record" "fqdn" {
   name    = "${var.owner}-consul.${data.aws_route53_zone.selected.name}"
   type    = "A"
   ttl     = "30"
-#  records = ["${aws_instance.consul-server[0].public_ip}", "${aws_instance.consul-server[1].public_ip}", "${aws_instance.consul-server[2].public_ip}"]
   records = [aws_instance.consul-server[0].public_ip, aws_instance.consul-server[1].public_ip, aws_instance.consul-server[2].public_ip]
 }
 
@@ -170,6 +169,7 @@ resource aws_instance "consul-server" {
   tags = {
     Name  = "${var.owner}-consul-server-instance"
     Owner = var.owner_tag
+    Instance = "${var.owner}-consul-server-instance-${count.index}"
   }
 }
 
@@ -230,10 +230,12 @@ resource null_resource "provisioning-clients" {
       "bind_addr = \"${each.value.private_ip}\"",
       "retry_join = [\"${aws_instance.consul-server[0].public_ip}\",\"${aws_instance.consul-server[1].public_ip}\",\"${aws_instance.consul-server[2].public_ip}\"]",
       "client_addr = \"${each.value.private_ip}\"",
+ #     "node_meta = [\"${aws_instance.consul-server[0].public_ip}\"]"
       "EOF",
       "sudo mv /tmp/consul-client.hcl /etc/consul/consul.d/consul-client.hcl",
       "sudo mv /tmp/httpd.json /etc/consul/consul.d/httpd.json",
-      "nohup python3 -m http.server 8080 &"
+      "nohup python3 -m http.server 8080 &",
+      "sleep 60"
     ]
   }
   provisioner "file" {
@@ -259,16 +261,17 @@ resource null_resource "provisioning-clients" {
 # of the server bits aroudn the script used for the watch
 #############################################################
 resource null_resource "provisioning-servers" {
-  for_each = { for server in aws_instance.consul-server : server.tags.Name => server }
+  for_each =  { for server in aws_instance.consul-server : server.tags.Instance => server }
   # Consul Client Configuration
   provisioner "file" {
-    source      = "files/check_handler.py"
-    destination = "/tmp/check_handler.py"
+    source      = "files/check-handler.py"
+    destination = "/tmp/check-handler.py"
   }
   provisioner "remote-exec" {
     inline = [
-      "sudo mv /tmp/check_handler.py /etc/consul/consul.d/check_handler.py",
-      "sudo sed /amq_public_address/${aws_instance.activemq-server.public_ip}/g /etc/consul/consul.d/check_handler.py"
+      "sudo mv /tmp/check-handler.py /etc/consul/consul.d/check-handler.py",
+      "sudo sed -i s/amq_public_address/${aws_instance.activemq-server.public_ip}/g /etc/consul/consul.d/check-handler.py",
+      "sudo chmod a+x /etc/consul/consul.d/check-handler.py"
     ]
   }
   connection {
@@ -292,8 +295,10 @@ resource null_resource "provisioning-activemq" {
   provisioner "remote-exec" {
     inline = [
       "sudo tar -zxvf /tmp/apache-activemq.tar.gz -C /etc",
-      "sudo sed /localhost/${aws_instance.activemq-server.private_ip}/g /etc/apache-activemq-5.16.0/bin/env",
-      "sudo sed /127.0.0.1/${aws_instance.activemq-server.private_ip}/g /etc/apache-activemq-5.16.0/conf/jetty.xml"
+      "sudo sed -i s/localhost/${aws_instance.activemq-server.private_ip}/g /etc/apache-activemq-5.16.0/bin/env",
+      "sudo sed -i s/127.0.0.1/${aws_instance.activemq-server.private_ip}/g /etc/apache-activemq-5.16.0/conf/jetty.xml",
+      "nohup sudo /etc/apache-activemq-5.16.0/bin/activemq console &",
+      "sleep 60"
     ]
   }
   connection {

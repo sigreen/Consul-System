@@ -1,15 +1,19 @@
-output "server_ip_addr" {
+output "Consul_Server_IPs" {
   value = aws_instance.consul-server[*].public_ip
 }
 
-output "client_ip_addr" {
+output "Consul_Client_IPs" {
   value = aws_instance.consul-client[*].public_ip
 }
 
-output "server_fqdn" {
-  value = aws_route53_record.fqdn.name
+output "Consul_Server" {
+  value = "http://${aws_route53_record.fqdn.name}:8500"
 }
 
-output "activemq_ip" {
+output "ActiveMQ_Server" {
+  value = "http://${aws_instance.activemq-server.public_ip}:8161/admin"
+}
+
+output "ActiveMQ_Server_IP" {
   value = aws_instance.activemq-server.public_ip
 }
